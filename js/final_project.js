@@ -4,6 +4,7 @@ window.onload = function() {
     year.value = '';
     year.focus();
 
+    // the main container that will hold all the posters/panels
     var myMoviesDiv = document.getElementById("myMoviesDiv");
     
     // create a new div element 
@@ -1134,7 +1135,7 @@ window.onload = function() {
         // check and validate year here
         // insert if...else
         // this.value == year.value; 
-        if (yearValid() ){ //&& this.value != null && this.value != " " ){
+        if (yearValid() ){ 
             document.title = "Top Movies of "+ this.value;
             myMoviesDiv.innerHTML = "";
                         
@@ -1147,8 +1148,10 @@ window.onload = function() {
                 }
             }
 
+            // movieYearArray is now populated by those top (10) grossing movies for the selected year
             for (var l = 0; l < movieYearArray.length; l++) {
                 for (var m = 0; m < 10; m++) {
+                    // pass each individual movie in the array to the OMDB API
                     callOMDB(movieYearArray[l][m]);
                 }
             }
@@ -1160,7 +1163,6 @@ window.onload = function() {
                 // making sure to handle the children and not the parent's event
                 if (e.target !== e.currentTarget) {
                     var clickedItem = e.target;
-                    console.log($(clickedItem).data( "imdb" ));
                     
                     /// following css-tricks.com article
                     // "Automatic IMDb / Netflix / Amazon Movie Links" Published December 28, 2009 by Chris Coyier
@@ -1168,42 +1170,60 @@ window.onload = function() {
                     var imdbURL = "http://www.imdb.com/find?s=tt&q=" + $(clickedItem).data( "imdb" );
                     //var wikiURL = "https://en.wikipedia.org/wiki/" + clickedItem.imdb; //+ "_(film)"; may bring up disambugation
                     
-                    // create a link or links and add them to a div and add that div to the posters 
+                    // create a link and add it to div ".titlePanels" and add that div to the posters 
                     var aTag = document.createElement('a');
                     aTag.href = imdbURL;
                     aTag.innerHTML = "...more at imdb";
-                    
-                    // what ever the current .poster's position, e.target.getBoundingClientRect()
-                    // create an div .titlePanel with identical dimensions and toggle it's visibility
-                    newClickDiv.setAttribute("class", "titlePanels");
-                    newClickDiv.setAttribute("id", document.getElementById("year").value +"_"+clickedItem.alt);
 
-                    // set the contents of the titlePanels text                      
+                    // need to hide or remove panel
+                    $(aTag).click(function() {
+                        $( this ).parent().html("Going to iMDB");
+                        this.parentNode.removeChild(this);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    });
+                    
+                    // whatever the current .poster's position, e.target.getBoundingClientRect()
+                    // create a div ".titlePanels" with similar dimensions and toggle it's visibility
+                    newClickDiv.setAttribute("class", "titlePanels");
+                    newClickDiv.setAttribute("id", document.getElementById("year").value +"_"+clickedItem.alt); // why isn't year.value accessible?
+
+                    // set the contents of the titlePanels text
                     if($(clickedItem).data( 'plot' ) != 'N/A'){
                         $(newClickDiv).html($(clickedItem).data( 'plot' ));
+                        console.log(  $(clickedItem).data( 'title' )+"\n" +
+                                      $(clickedItem).data( 'actor' )+"\n" + 
+                    "TomatoMeter: " + $(clickedItem).data( 'tomato' ));
                     }else{
+                        // sometime no plot available                    
                         $(newClickDiv).html("Plot not available.");
                     }
+
+                    $(newClickDiv).css('text-align','justify');
                     $(newClickDiv).append($(aTag));
                     
-                    // need to fix the positioning !!
-                    var newX = e.target.getBoundingClientRect().x;
-                    var newY = e.target.getBoundingClientRect().y;
-
+                    // need to fix the positioning !
+                    // OK in FF, misplaced in Chrome & Safari
+                    // var newX = e.target.getBoundingClientRect().x;
+                    // var newY = e.target.getBoundingClientRect().y;
+                    
+                    // using jQuery's position method seems to take care of most browsers
+                    var newX = $(e.target).position().left;
+                    var newY = $(e.target).position().top;
+                    
                     newClickDiv.style.position = "absolute";
-                    newClickDiv.style.left = (newX-5)+"px";
+                    newClickDiv.style.left = (newX-7)+"px";
                     newClickDiv.style.top = newY+"px";
                     newClickDiv.style.display = "block";
 
                     $(this).append(newClickDiv);
 
                     // remove titlePanel info 
-                    $(newClickDiv).hide("fade", {}, 10500);
-                    e.stopPropagation();
+                    $(newClickDiv).delay(5500).fadeOut(450);
                 }
                 //stops the event from bubbling to the parent elements
                 e.stopPropagation();
-            }, false); // default false (bubble), or handle mySpan 1st
+            }, false); // default false (bubble), or handle ".posters" 1st
             //e.preventDefault();
         }
         //  the year entered is false
@@ -1227,14 +1247,19 @@ window.onload = function() {
         }
     }
 
+    // function createLoadingImage(){
+    //     var loadingDiv = document.createElement("div")
+    //     loadingDiv.setAttribute("id","loadingImage");
+    //     myMoviesDiv.appendChild(loadingDiv);
+    //     $('#loadingDiv').show( "fast" );
+    //     return $(this); //?
+    // }
+
     function callOMDB(movieName, e) {
 
         // make an send an XmlHttpRequest
         var x = new XMLHttpRequest();
-        console.log("...making API call to OMDB...")
-
-        // alert(this.value+"'s 10nth movie: "+topGrossMovies[this.value][i]);
-        //var yearTopMovies; 
+        console.log("...making API call to OMDB...");
 
         // set up the url and parameters
         var url = "http://www.omdbapi.com?t=";
@@ -1249,21 +1274,22 @@ window.onload = function() {
         // set up a listener for the response
         x.onreadystatechange = function() {
             if (this.readyState == 4 && this.status == 200) {
+                
+                // the loading gif in case remote call too long
+                //$('#loadingDiv').remove();
+
                 //alert(this.response);
                 var movie = this.response;
-                var m = JSON.parse(movie);console.log(m);
+                var m = JSON.parse(movie);
 
                 // make sure title exists
                 if (m.Response !== "False") {
 
                     // to prevent a visually empty space in case no image available to fill div
                     if (m.Poster && m.Poster != "N/A" && m.Poster != null) {
+                    
                     // build the html here
                     // add each returned movies as a div
-                    
-                    // clear previous
-                    // myMoviesDiv.innerHTML = "";
-
                     (function() {
                         // create a new div element 
                         var newDiv = document.createElement("div");
@@ -1299,15 +1325,10 @@ window.onload = function() {
                         $(newPoster).data("runtime", m.Runtime);
                         $(newPoster).data("plot", m.Plot);
                         $(newPoster).data("imdb", m.imdbID);
+                        $(newPoster).data("tomato", m.tomatoMeter);
                         
                         newPoster.setAttribute("alt", m.Title);
-                        //newPoster.setAttribute("title", m.Title);
-
-                            // "Director: " + m.Director + "\n" +
-                            //                             "Released: " + m.Released + "\n" +
-                            //                             "Runtime: "  + m.Runtime+ "\n\n"  + 
-                            //                                            m.Plot);
-
+                        
                         newDiv.appendChild(newPoster); //add the img div
                         newDiv.appendChild(horizonLine); //add <hr> 
                         newDiv.appendChild(titleSpan); //add the title span 
